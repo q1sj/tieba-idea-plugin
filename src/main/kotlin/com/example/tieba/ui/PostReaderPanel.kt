@@ -38,6 +38,11 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         font = font.deriveFont(11f)
     }
 
+    private val fgHex: String = run {
+        val c = UIManager.getColor("Component.foreground") ?: Color.WHITE
+        String.format("#%02x%02x%02x", c.red, c.green, c.blue)
+    }
+
     private val cardPanel = JPanel(CardLayout())
     private val cardLayout: CardLayout = cardPanel.layout as CardLayout
 
@@ -105,21 +110,21 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         onlyOpButton.isSelected = onlyOp
 
         val sb = StringBuilder()
-        sb.append("<html><body style=\"font-family: sans-serif; font-size: 13px; line-height: 1.6; padding: 8px; background: transparent; color: inherit;\">")
+        sb.append("<html><body style=\"font-family: sans-serif; font-size: 13px; line-height: 1.6; padding: 8px; background: transparent; color: $fgHex;\">")
 
         for (post in posts) {
             val borderColor = if (post.isOp) "#4285f4" else "#666"
             sb.append("<div style=\"border-left: 3px solid ${borderColor}; padding: 10px 12px; margin-bottom: 8px; border-radius: 0 4px 4px 0; background: transparent;\">")
 
             val opTag = if (post.isOp) " <span style=\"color:#e67e22; font-weight:bold;\">[楼主]</span>" else ""
-            sb.append("<div style=\"margin-bottom: 6px; color: #888; font-size: 12px;\">")
-            sb.append("<strong style=\"color: inherit;\">${escapeHtml(post.author)}</strong>$opTag")
+            sb.append("<div style=\"margin-bottom: 6px; color: #aaa; font-size: 12px;\">")
+            sb.append("<strong style=\"color: $fgHex;\">${escapeHtml(post.author)}</strong>$opTag")
             sb.append(" · 第${post.floor}楼")
             if (post.timestamp.isNotEmpty()) sb.append(" · ${post.timestamp}")
             sb.append("</div>")
 
             if (post.text.isNotEmpty()) {
-                sb.append("<div style=\"margin-bottom: 6px; white-space: pre-wrap; color: inherit;\">")
+                sb.append("<div style=\"margin-bottom: 6px; white-space: pre-wrap; color: $fgHex;\">")
                 sb.append(escapeHtml(post.text))
                 sb.append("</div>")
             }
@@ -129,7 +134,7 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
             }
 
             if (post.replyNum > 0) {
-                sb.append("<div style=\"color: #999; font-size: 11px; margin-top: 4px;\">${post.replyNum} 条回复</div>")
+                sb.append("<div style=\"color: #bbb; font-size: 11px; margin-top: 4px;\">${post.replyNum} 条回复</div>")
             }
 
             sb.append("</div>")

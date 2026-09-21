@@ -4,7 +4,6 @@ import com.example.tieba.data.TiebaPost
 import com.intellij.util.ui.JBUI
 import javax.swing.*
 import java.awt.*
-import java.awt.event.*
 
 class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
 
@@ -12,6 +11,8 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         private set
     var onThreadTid: Long = 0
         private set
+    val isOnlyOp: Boolean
+        get() = onlyOpButton.isSelected
 
     private val titleLabel = JLabel("点击帖子查看内容", SwingConstants.CENTER).apply {
         font = font.deriveFont(Font.BOLD, 14f)
@@ -21,6 +22,7 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
     private val editorPane = JEditorPane("text/html", "").apply {
         isEditable = false
         border = JBUI.Borders.empty(8)
+        background = UIManager.getColor("Component.background")
     }
 
     private val loadingLabel = JLabel("加载中...", SwingConstants.CENTER).apply {
@@ -38,6 +40,10 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
 
     private val cardPanel = JPanel(CardLayout())
     private val cardLayout: CardLayout = cardPanel.layout as CardLayout
+
+    var onOnlyOpChange: ((Int) -> Unit)? = null
+    var onPageChange: ((Int) -> Unit)? = null
+    var onBack: (() -> Unit)? = null
 
     init {
         val topPanel = JPanel(BorderLayout(5, 0))
@@ -66,19 +72,32 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
             val page = pageInfoLabel.text.split("/").first().toIntOrNull() ?: 1
             onOnlyOpChange?.invoke(page)
         }
-    }
 
-    var onOnlyOpChange: ((Int) -> Unit)? = null
+        prevPageButton.addActionListener {
+            val current = pageInfoLabel.text.split("/").first().toIntOrNull() ?: 1
+            if (current > 1) onPageChange?.invoke(current - 1)
+        }
+        nextPageButton.addActionListener {
+            val current = pageInfoLabel.text.split("/").first().toIntOrNull() ?: 1
+            onPageChange?.invoke(current + 1)
+        }
+
+        backToListButton.addActionListener {
+            onBack?.invoke()
+        }
+    }
 
     fun setPosts(
         posts: List<TiebaPost>,
         threadTitle: String,
+        tid: Long,
         totalPage: Int,
         currentPage: Int,
         hasMore: Boolean,
         onlyOp: Boolean
     ) {
         onThreadTitle = threadTitle
+        onThreadTid = tid
         titleLabel.text = threadTitle
         pageInfoLabel.text = "$currentPage/$totalPage"
         prevPageButton.isEnabled = currentPage > 1
@@ -86,28 +105,27 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         onlyOpButton.isSelected = onlyOp
 
         val sb = StringBuilder()
-        sb.append("<html><body style=\"font-family: sans-serif; font-size: 13px; line-height: 1.6; padding: 8px;\">")
+        sb.append("<html><body style=\"font-family: sans-serif; font-size: 13px; line-height: 1.6; padding: 8px; background: transparent; color: inherit;\">")
 
         for (post in posts) {
-            val bgColor = if (post.isOp) "#e8f0fe" else "#f5f5f5"
-            val borderColor = if (post.isOp) "#4285f4" else "#ddd"
-            sb.append("<div style=\"background:${bgColor}; border-left: 3px solid ${borderColor}; padding: 10px; margin-bottom: 8px; border-radius: 4px;\">")
+            val borderColor = if (post.isOp) "#4285f4" else "#666"
+            sb.append("<div style=\"border-left: 3px solid ${borderColor}; padding: 10px 12px; margin-bottom: 8px; border-radius: 0 4px 4px 0; background: transparent;\">")
 
             val opTag = if (post.isOp) " <span style=\"color:#e67e22; font-weight:bold;\">[楼主]</span>" else ""
-            sb.append("<div style=\"margin-bottom: 6px; color: #666; font-size: 12px;\">")
-            sb.append("<strong>${escapeHtml(post.author)}</strong>$opTag")
+            sb.append("<div style=\"margin-bottom: 6px; color: #888; font-size: 12px;\">")
+            sb.append("<strong style=\"color: inherit;\">${escapeHtml(post.author)}</strong>$opTag")
             sb.append(" · 第${post.floor}楼")
             if (post.timestamp.isNotEmpty()) sb.append(" · ${post.timestamp}")
             sb.append("</div>")
 
             if (post.text.isNotEmpty()) {
-                sb.append("<div style=\"margin-bottom: 6px; white-space: pre-wrap;\">")
+                sb.append("<div style=\"margin-bottom: 6px; white-space: pre-wrap; color: inherit;\">")
                 sb.append(escapeHtml(post.text))
                 sb.append("</div>")
             }
 
             for (imgUrl in post.imgs) {
-                sb.append("<div style=\"margin: 6px 0;\"><img src=\"$imgUrl\" style=\"max-width: 100%; max-height: 400px; cursor: pointer;\" /></div>")
+                sb.append("<div style=\"margin: 6px 0;\"><img src=\"$imgUrl\" style=\"max-width: 240px; max-height: 180px; cursor: pointer; border-radius: 4px;\" /></div>")
             }
 
             if (post.replyNum > 0) {
@@ -119,6 +137,14 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
 
         sb.append("</body></html>")
         editorPane.text = sb.toString()
+    }
+
+    fun showError(message: String) {
+        titleLabel.text = "错误"
+        editorPane.text = "<html><body style=\"padding: 16px; color: #e74c3c; background: transparent;\"><strong>$message</strong></body></html>"
+        pageInfoLabel.text = "1"
+        prevPageButton.isEnabled = false
+        nextPageButton.isEnabled = false
     }
 
     fun showLoading() {

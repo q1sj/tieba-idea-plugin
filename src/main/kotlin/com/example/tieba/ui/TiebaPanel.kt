@@ -4,11 +4,10 @@ import com.example.tieba.data.TiebaBridge
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.openapi.project.Project
-import com.intellij.util.ui.JBUI
 import javax.swing.*
 import java.awt.*
 
-class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) : JPanel(BorderLayout(0, 5)) {
+class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) : JPanel(BorderLayout()) {
 
     private val searchPanel = ForumSearchPanel()
     private val threadListPanel = ThreadListPanel()
@@ -18,16 +17,18 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
         font = font.deriveFont(11f)
     }
 
+    private val cardPanel = JPanel(CardLayout())
+    private val cardLayout = cardPanel.layout as CardLayout
+    private val listCard = JPanel(BorderLayout(0, 5))
+
     init {
-        add(searchPanel, BorderLayout.NORTH)
+        listCard.add(searchPanel, BorderLayout.NORTH)
+        listCard.add(threadListPanel, BorderLayout.CENTER)
+        listCard.add(statusLabel, BorderLayout.SOUTH)
 
-        val splitPane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, threadListPanel, postReaderPanel).apply {
-            dividerLocation = 300
-            isOneTouchExpandable = true
-        }
-
-        add(splitPane, BorderLayout.CENTER)
-        add(statusLabel, BorderLayout.SOUTH)
+        cardPanel.add(listCard, "LIST")
+        cardPanel.add(postReaderPanel, "POST")
+        add(cardPanel, BorderLayout.CENTER)
 
         searchPanel.onSearch = { forum ->
             loadThreads(forum)
@@ -49,6 +50,19 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
             if (tid != 0L) {
                 loadPosts(tid, title, page, onlyOp = true)
             }
+        }
+
+        postReaderPanel.onPageChange = { page ->
+            val title = postReaderPanel.onThreadTitle
+            val tid = postReaderPanel.onThreadTid
+            val onlyOp = postReaderPanel.isOnlyOp
+            if (tid != 0L) {
+                loadPosts(tid, title, page, onlyOp = onlyOp)
+            }
+        }
+
+        postReaderPanel.onBack = {
+            cardLayout.show(cardPanel, "LIST")
         }
     }
 
@@ -100,7 +114,7 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
     }
 
     private fun loadPosts(tid: Long, title: String, page: Int = 1, onlyOp: Boolean = false) {
-        statusLabel.text = "加载中..."
+        cardLayout.show(cardPanel, "POST")
         postReaderPanel.showLoading()
 
         bridge.sendRequest(
@@ -111,7 +125,7 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
                 try {
                     val obj: JsonObject = JsonParser.parseString(json).asJsonObject
                     if (obj.has("error")) {
-                        statusLabel.text = "错误: ${obj.get("error").asString}"
+                        postReaderPanel.showError(obj.get("error").asString)
                         return@invokeLater
                     }
 
@@ -137,10 +151,9 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
                         )
                     }
 
-                    postReaderPanel.setPosts(posts, threadTitle, totalPage, page, hasMore, onlyOp)
-                    statusLabel.text = "$threadTitle - 第${page}页"
+                    postReaderPanel.setPosts(posts, threadTitle, tid, totalPage, page, hasMore, onlyOp)
                 } catch (e: Exception) {
-                    statusLabel.text = "解析错误: ${e.message}"
+                    postReaderPanel.showError("解析错误: ${e.message}")
                 }
             }
         }

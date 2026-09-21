@@ -9,6 +9,7 @@ import java.awt.event.*
 class ForumSearchPanel : JPanel(BorderLayout()) {
 
     var forum: String = ""
+    var currentPage: Int = 1
 
     var onSearch: ((String) -> Unit)? = null
     var onPageChange: ((Int) -> Unit)? = null
@@ -46,12 +47,10 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
 
         searchButton.addActionListener { doSearch() }
         prevPageButton.addActionListener {
-            val current = pageInfoLabel.text.toIntOrNull() ?: 1
-            if (current > 1) onPageChange?.invoke(current - 1)
+            if (currentPage > 1) onPageChange?.invoke(currentPage - 1)
         }
         nextPageButton.addActionListener {
-            val current = pageInfoLabel.text.toIntOrNull() ?: 1
-            onPageChange?.invoke(current + 1)
+            onPageChange?.invoke(currentPage + 1)
         }
     }
 
@@ -59,6 +58,7 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
         val text = searchField.text.trim()
         if (text.isEmpty()) return
         forum = text
+        currentPage = 1
         pageInfoLabel.text = "1"
         prevPageButton.isEnabled = false
         nextPageButton.isEnabled = false
@@ -66,6 +66,7 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
     }
 
     fun updatePageInfo(current: Int, total: Int, hasMore: Boolean) {
+        currentPage = current
         pageInfoLabel.text = "$current/$total"
         prevPageButton.isEnabled = current > 1
         nextPageButton.isEnabled = hasMore

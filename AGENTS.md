@@ -14,6 +14,8 @@ $env:PATH="$env:JAVA_HOME\bin;$env:PATH"
 
 Output: `build\distributions\tieba-idea-plugin-1.0.zip`
 
+**Workflow rule: after every code change, run `.\gradlew.bat buildPlugin` to verify the build.** It must complete successfully before the change is considered done.
+
 Install: extract ZIP to `%APPDATA%\JetBrains\IntelliJIdea2024.1\plugins\`, then reload plugin in IDE.
 
 **No test framework** is configured. Verify via `.\gradlew.bat runIde` or manual install.
@@ -37,7 +39,7 @@ Install: extract ZIP to `%APPDATA%\JetBrains\IntelliJIdea2024.1\plugins\`, then 
 
 4. **Java 8 target, JDK 21 build**: `jvmToolchain(8)`, `jvmTarget = "1.8"`, `targetCompatibility = "1.8"`. Build with JDK 21.
 
-5. **`intellij.localPath`** in `build.gradle.kts` is a hardcoded path to a temp IDEA installation (`D:/Program Files/...`). Change it if the path differs.
+5. **`intellij.localPath`** in `build.gradle.kts` is a hardcoded path to a temp IDEA installation (`D:/Program Files/java/repository1/AppData/Local/Temp/opencode/idea/idea-IC-201.8743.12`). Change it if the path differs.
 
 6. **`ContentFactory.getInstance()`** is not available in the IDE API version used. `TiebaToolWindowFactory` uses reflection to call it.
 

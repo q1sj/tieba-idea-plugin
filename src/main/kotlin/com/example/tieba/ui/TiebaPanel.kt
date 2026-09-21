@@ -4,6 +4,7 @@ import com.example.tieba.data.TiebaBridge
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.openapi.project.Project
+import com.intellij.util.ui.JBUI
 import javax.swing.*
 import java.awt.*
 
@@ -63,6 +64,13 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
 
         postReaderPanel.onBack = {
             cardLayout.show(cardPanel, "LIST")
+        }
+
+        postReaderPanel.onShowComments = { post ->
+            val tid = postReaderPanel.onThreadTid
+            if (tid != 0L && post.pid != 0L) {
+                showCommentsDialog(tid, post)
+            }
         }
     }
 
@@ -141,6 +149,7 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
                         posts.add(
                             com.example.tieba.data.TiebaPost(
                                 floor = p.get("floor")?.asInt ?: 0,
+                                pid = p.get("pid")?.asLong ?: 0,
                                 author = p.get("author")?.asString ?: "",
                                 text = p.get("text")?.asString ?: "",
                                 imgs = imgs,
@@ -157,5 +166,122 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
                 }
             }
         }
+    }
+
+    private fun showCommentsDialog(tid: Long, post: com.example.tieba.data.TiebaPost) {
+        val dialog = JDialog(null as Frame?, "第${post.floor}楼回复", true).apply {
+            size = Dimension(520, 480)
+            setLocationRelativeTo(null)
+        }
+
+        val editorPane = JEditorPane("text/html", "").apply {
+            isEditable = false
+            border = JBUI.Borders.empty(8)
+        }
+        val scrollPane = JScrollPane(editorPane)
+        val loadingLabel = JLabel("加载中...", SwingConstants.CENTER).apply {
+            foreground = Color.GRAY
+        }
+        val cardPanel = JPanel(CardLayout())
+        val cardLayout = cardPanel.layout as CardLayout
+        cardPanel.add(scrollPane, "CONTENT")
+        cardPanel.add(loadingLabel, "LOADING")
+
+        val prevButton = JButton("< 上一页").apply { isEnabled = false }
+        val nextButton = JButton("下一页 >").apply { isEnabled = false }
+        val pageLabel = JLabel("1")
+        val bottomPanel = JPanel(BorderLayout(5, 0))
+        bottomPanel.add(prevButton, BorderLayout.WEST)
+        bottomPanel.add(pageLabel, BorderLayout.CENTER)
+        bottomPanel.add(nextButton, BorderLayout.EAST)
+
+        dialog.layout = BorderLayout(0, 5)
+        dialog.add(cardPanel, BorderLayout.CENTER)
+        dialog.add(bottomPanel, BorderLayout.SOUTH)
+
+        var currentPage = 1
+        var totalPage = 1
+        var hasMore = false
+
+        fun render(comments: List<com.example.tieba.data.TiebaComment>, page: Int) {
+            val sb = StringBuilder()
+            sb.append("<html><body style=\"font-family: sans-serif; font-size: 13px; line-height: 1.6; padding: 8px;\">")
+            if (comments.isEmpty()) {
+                sb.append("<div style=\"color: #999; text-align: center; padding: 12px;\">暂无回复</div>")
+            }
+            for (c in comments) {
+                val borderColor = if (c.isOp) "#4285f4" else "#666"
+                sb.append("<div style=\"border-left: 3px solid $borderColor; padding: 8px 10px; margin-bottom: 6px;\">")
+                sb.append("<div style=\"margin-bottom: 4px; color: #aaa; font-size: 12px;\">")
+                sb.append("<strong>${escapeHtml(c.author)}</strong>")
+                if (c.isOp) sb.append(" <span style=\"color:#e67e22; font-weight:bold;\">[楼主]</span>")
+                if (c.timestamp.isNotEmpty()) sb.append(" · ${c.timestamp}")
+                if (c.agree > 0) sb.append(" · 赞${c.agree}")
+                sb.append("</div>")
+                if (c.text.isNotEmpty()) {
+                    sb.append("<div style=\"white-space: pre-wrap;\">${escapeHtml(c.text)}</div>")
+                }
+                sb.append("</div>")
+            }
+            sb.append("</body></html>")
+            editorPane.text = sb.toString()
+            pageLabel.text = "$page/$totalPage"
+            prevButton.isEnabled = page > 1
+            nextButton.isEnabled = hasMore
+        }
+
+        fun loadComments(page: Int) {
+            cardLayout.show(cardPanel, "LOADING")
+            bridge.sendRequest(
+                mapOf("action" to "get_comments", "tid" to tid, "pid" to post.pid, "page" to page)
+            ).thenAccept { json ->
+                SwingUtilities.invokeLater {
+                    try {
+                        val obj: JsonObject = JsonParser.parseString(json).asJsonObject
+                        if (obj.has("error")) {
+                            cardLayout.show(cardPanel, "CONTENT")
+                            editorPane.text = "<html><body style=\"padding: 16px; color: #e74c3c;\"><strong>${obj.get("error").asString}</strong></body></html>"
+                            return@invokeLater
+                        }
+                        val comments = mutableListOf<com.example.tieba.data.TiebaComment>()
+                        totalPage = obj.get("totalPage")?.asInt ?: 0
+                        hasMore = obj.get("hasMore")?.asBoolean ?: false
+                        currentPage = page
+                        obj.get("comments")?.asJsonArray?.forEach { cj ->
+                            val c = cj.asJsonObject
+                            comments.add(
+                                com.example.tieba.data.TiebaComment(
+                                    author = c.get("author")?.asString ?: "",
+                                    text = c.get("text")?.asString ?: "",
+                                    timestamp = c.get("timestamp")?.asString ?: "",
+                                    isOp = c.get("isOp")?.asBoolean ?: false,
+                                    agree = c.get("agree")?.asInt ?: 0
+                                )
+                            )
+                        }
+                        cardLayout.show(cardPanel, "CONTENT")
+                        render(comments, page)
+                    } catch (e: Exception) {
+                        cardLayout.show(cardPanel, "CONTENT")
+                        editorPane.text = "<html><body style=\"padding: 16px; color: #e74c3c;\"><strong>解析错误: ${e.message}</strong></body></html>"
+                    }
+                }
+            }
+        }
+
+        prevButton.addActionListener { if (currentPage > 1) loadComments(currentPage - 1) }
+        nextButton.addActionListener { loadComments(currentPage + 1) }
+
+        loadComments(1)
+        dialog.setVisible(true)
+    }
+
+    private fun escapeHtml(text: String): String {
+        return text
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;")
     }
 }

@@ -19,6 +19,7 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         private val LOG = Logger.getInstance(PostReaderPanel::class.java)
         private const val PROP_FONT_COLOR = "tieba.postFontColor"
         private const val IMAGE_LINK_PREFIX = "https://tieba.local/img/"
+        private const val COMMENT_LINK_PREFIX = "https://tieba.local/comment/"
     }
 
     var onThreadTitle: String = ""
@@ -39,11 +40,17 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         background = UIManager.getColor("Component.background")
         addHyperlinkListener { e ->
             if (e.eventType == HyperlinkEvent.EventType.ACTIVATED) {
-                val url = e.url?.toString() ?: e.description?.takeIf { it.startsWith(IMAGE_LINK_PREFIX) } ?: return@addHyperlinkListener
+                val url = e.url?.toString() ?: e.description?.takeIf { it.startsWith(IMAGE_LINK_PREFIX) || it.startsWith(COMMENT_LINK_PREFIX) } ?: return@addHyperlinkListener
                 if (url.startsWith(IMAGE_LINK_PREFIX)) {
                     val idx = url.removePrefix(IMAGE_LINK_PREFIX).toIntOrNull()
                     if (idx != null && idx < currentImageUrls.size) {
                         showImageDialog(currentImageUrls[idx])
+                    }
+                } else if (url.startsWith(COMMENT_LINK_PREFIX)) {
+                    val idx = url.removePrefix(COMMENT_LINK_PREFIX).toIntOrNull()
+                    val cached = lastPosts
+                    if (idx != null && cached != null && idx < cached.size) {
+                        onShowComments?.invoke(cached[idx])
                     }
                 }
             }
@@ -80,6 +87,7 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
     var onOnlyOpChange: ((Int) -> Unit)? = null
     var onPageChange: ((Int) -> Unit)? = null
     var onBack: (() -> Unit)? = null
+    var onShowComments: ((TiebaPost) -> Unit)? = null
 
     private val imageCache = LinkedHashMap<String, BufferedImage>()
     private var currentImageUrls = emptyList<String>()
@@ -182,6 +190,7 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         sb.append("<html><body style=\"font-family: sans-serif; font-size: 13px; line-height: 1.6; padding: 8px; background: transparent; color: $fgHex;\">")
 
         var imgIdx = 0
+        var postIdx = 0
         for (post in posts) {
             val borderColor = if (post.isOp) "#4285f4" else "#666"
             sb.append("<div style=\"border-left: 3px solid ${borderColor}; padding: 10px 12px; margin-bottom: 8px; border-radius: 0 4px 4px 0; background: transparent;\">")
@@ -210,10 +219,11 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
             }
 
             if (post.replyNum > 0) {
-                sb.append("<div style=\"color: #bbb; font-size: 11px; margin-top: 4px;\">${post.replyNum} 条回复</div>")
+                sb.append("<div style=\"color: #bbb; font-size: 11px; margin-top: 4px;\"><a href=\"${COMMENT_LINK_PREFIX}${postIdx}\" style=\"color:#69b; text-decoration:none; cursor:pointer;\">查看 ${post.replyNum} 条回复</a></div>")
             }
 
             sb.append("</div>")
+            postIdx++
         }
 
         sb.append("</body></html>")

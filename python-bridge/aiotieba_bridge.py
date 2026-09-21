@@ -65,6 +65,7 @@ async def handle_get_posts(tid: int, page: int = 1, only_op: bool = False):
                     imgs.append(img.src)
         posts.append({
             "floor": p.floor,
+            "pid": p.pid,
             "author": (user.nick_name or user.user_name) if user else "",
             "text": p.text,
             "imgs": imgs,
@@ -83,6 +84,27 @@ async def handle_get_posts(tid: int, page: int = 1, only_op: bool = False):
     }
 
 
+async def handle_get_comments(tid: int, pid: int, page: int = 1):
+    async with aiotieba.Client() as client:
+        comments_result = await client.get_comments(tid, pid, page)
+    comments = []
+    for c in comments_result.objs:
+        user = c.user
+        comments.append({
+            "author": (user.nick_name or user.user_name) if user else "",
+            "text": c.text,
+            "timestamp": fmt_time(c.create_time),
+            "isOp": c.is_thread_author,
+            "agree": c.agree,
+        })
+    return {
+        "comments": comments,
+        "totalPage": comments_result.page.total_page if comments_result.page else 0,
+        "currentPage": page,
+        "hasMore": comments_result.has_more,
+    }
+
+
 async def handle_health():
     return {"status": "ok"}
 
@@ -94,6 +116,8 @@ async def process_request(request: dict) -> dict:
             return await handle_get_threads(request.get("forum", ""), request.get("page", 1))
         elif action == "get_posts":
             return await handle_get_posts(request.get("tid", 0), request.get("page", 1), request.get("only_op", False))
+        elif action == "get_comments":
+            return await handle_get_comments(request.get("tid", 0), request.get("pid", 0), request.get("page", 1))
         elif action == "health":
             return await handle_health()
         else:

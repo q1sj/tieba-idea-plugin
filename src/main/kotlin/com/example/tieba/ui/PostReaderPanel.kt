@@ -1,11 +1,16 @@
 package com.example.tieba.ui
 
 import com.example.tieba.data.TiebaPost
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.util.ui.JBUI
 import javax.swing.*
 import java.awt.*
 
 class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
+
+    companion object {
+        private const val PROP_FONT_COLOR = "tieba.postFontColor"
+    }
 
     var onThreadTitle: String = ""
         private set
@@ -38,9 +43,15 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         font = font.deriveFont(11f)
     }
 
-    private val fgHex: String = run {
-        val c = UIManager.getColor("Component.foreground") ?: Color.WHITE
-        String.format("#%02x%02x%02x", c.red, c.green, c.blue)
+    private var fgHex: String = colorToHex(loadColor())
+
+    private val colorPickerButton = JButton().apply {
+        preferredSize = Dimension(20, 20)
+        isContentAreaFilled = true
+        isFocusable = false
+        border = BorderFactory.createLineBorder(Color.GRAY)
+        background = loadColor()
+        toolTipText = "选择字体颜色"
     }
 
     private val cardPanel = JPanel(CardLayout())
@@ -50,10 +61,18 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
     var onPageChange: ((Int) -> Unit)? = null
     var onBack: (() -> Unit)? = null
 
+    private var lastPosts: List<TiebaPost>? = null
+    private var lastThreadTitle: String = ""
+    private var lastTotalPage: Int = 0
+    private var lastCurrentPage: Int = 1
+    private var lastHasMore: Boolean = false
+    private var lastOnlyOp: Boolean = false
+
     init {
         val topPanel = JPanel(BorderLayout(5, 0))
         topPanel.add(backToListButton, BorderLayout.WEST)
         topPanel.add(titleLabel, BorderLayout.CENTER)
+        topPanel.add(colorPickerButton, BorderLayout.EAST)
         add(topPanel, BorderLayout.NORTH)
 
         val scrollPane = JScrollPane(editorPane)
@@ -90,6 +109,19 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         backToListButton.addActionListener {
             onBack?.invoke()
         }
+
+        colorPickerButton.addActionListener {
+            val newColor = JColorChooser.showDialog(this, "选择字体颜色", colorPickerButton.background)
+            if (newColor != null) {
+                saveColor(newColor)
+                fgHex = colorToHex(newColor)
+                colorPickerButton.background = newColor
+                val cached = lastPosts
+                if (cached != null) {
+                    setPosts(cached, lastThreadTitle, onThreadTid, lastTotalPage, lastCurrentPage, lastHasMore, lastOnlyOp)
+                }
+            }
+        }
     }
 
     fun setPosts(
@@ -103,6 +135,12 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
     ) {
         onThreadTitle = threadTitle
         onThreadTid = tid
+        lastPosts = posts
+        lastThreadTitle = threadTitle
+        lastTotalPage = totalPage
+        lastCurrentPage = currentPage
+        lastHasMore = hasMore
+        lastOnlyOp = onlyOp
         titleLabel.text = threadTitle
         pageInfoLabel.text = "$currentPage/$totalPage"
         prevPageButton.isEnabled = currentPage > 1
@@ -165,6 +203,7 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
         editorPane.text = ""
         pageInfoLabel.text = "1"
         onThreadTid = 0
+        lastPosts = null
     }
 
     private fun escapeHtml(text: String): String {
@@ -174,5 +213,26 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
             .replace(">", "&gt;")
             .replace("\"", "&quot;")
             .replace("'", "&#39;")
+    }
+
+    private fun loadColor(): Color {
+        val hex = PropertiesComponent.getInstance().getValue(PROP_FONT_COLOR)
+        return if (hex != null) {
+            try { Color.decode(hex) } catch (_: Exception) { defaultColor() }
+        } else {
+            defaultColor()
+        }
+    }
+
+    private fun saveColor(color: Color) {
+        PropertiesComponent.getInstance().setValue(PROP_FONT_COLOR, colorToHex(color))
+    }
+
+    private fun defaultColor(): Color {
+        return UIManager.getColor("Component.foreground") ?: Color.WHITE
+    }
+
+    private fun colorToHex(color: Color): String {
+        return String.format("#%02x%02x%02x", color.red, color.green, color.blue)
     }
 }

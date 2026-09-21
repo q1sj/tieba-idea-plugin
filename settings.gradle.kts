@@ -1,0 +1,1 @@
+rootProject.name = "tieba-idea-plugin"

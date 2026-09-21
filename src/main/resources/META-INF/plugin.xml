@@ -1,0 +1,26 @@
+<idea-plugin>
+    <id>com.example.tieba</id>
+    <name>Tieba Browser</name>
+    <version>1.0</version>
+    <vendor email="" url="">com.example</vendor>
+
+    <description><![CDATA[
+Browse Baidu Tieba inside IntelliJ IDEA.
+Core features: search forums, view thread list, read posts, page navigation.
+]]></description>
+
+    <change-notes><![CDATA[
+Initial release: browse tieba in IDE.
+]]></change-notes>
+
+    <idea-version since-build="201"/>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Tieba"
+                    anchor="right"
+                    factoryClass="com.example.tieba.ui.TiebaToolWindowFactory"
+                    canCloseBeRehidden="true"/>
+    </extensions>
+</idea-plugin>

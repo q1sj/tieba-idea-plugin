@@ -225,6 +225,7 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
             }
             sb.append("</body></html>")
             editorPane.text = sb.toString()
+            editorPane.caretPosition = 0
             pageLabel.text = "$page/$totalPage"
             prevButton.isEnabled = page > 1
             nextButton.isEnabled = hasMore

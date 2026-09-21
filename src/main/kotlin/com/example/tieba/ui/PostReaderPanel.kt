@@ -228,6 +228,7 @@ class PostReaderPanel : JPanel(BorderLayout(0, 5)) {
 
         sb.append("</body></html>")
         editorPane.text = sb.toString()
+        editorPane.caretPosition = 0
     }
 
     fun showError(message: String) {

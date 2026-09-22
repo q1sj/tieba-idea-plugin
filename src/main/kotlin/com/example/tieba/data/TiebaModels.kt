@@ -32,3 +32,14 @@ data class TiebaComment(
     val isOp: Boolean = false,
     val agree: Int = 0
 )
+
+data class TiebaSearchItem(
+    val fname: String = "",
+    val tid: Long = 0,
+    val pid: Long = 0,
+    val title: String = "",
+    val text: String = "",
+    val showName: String = "",
+    val isComment: Boolean = false,
+    val createTime: String = ""
+)

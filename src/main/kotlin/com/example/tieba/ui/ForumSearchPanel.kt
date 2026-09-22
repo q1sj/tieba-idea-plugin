@@ -15,6 +15,7 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
     var onSearch: ((String) -> Unit)? = null
     var onPageChange: ((Int) -> Unit)? = null
     var onModeChange: ((Boolean) -> Unit)? = null
+    var onForumSearch: ((String, Boolean) -> Unit)? = null
 
     private val searchField = SearchTextField()
     private val goodCheckbox = JCheckBox("精品")
@@ -22,9 +23,13 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
     private val prevPageButton = JButton("<")
     private val nextPageButton = JButton(">")
     private val pageInfoLabel = JLabel("1")
+    private val keywordField = SearchTextField()
+    private val onlyThreadCheckbox = JCheckBox("只看主题")
+    private val forumSearchButton = JButton("吧内搜索")
 
     init {
         searchField.preferredSize = Dimension(150, searchField.preferredSize.height)
+        keywordField.preferredSize = Dimension(150, keywordField.preferredSize.height)
 
         val topPanel = JPanel(BorderLayout(5, 0))
         topPanel.add(searchField, BorderLayout.CENTER)
@@ -32,7 +37,18 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
         rightPanel.add(goodCheckbox, BorderLayout.WEST)
         rightPanel.add(searchButton, BorderLayout.EAST)
         topPanel.add(rightPanel, BorderLayout.EAST)
-        add(topPanel, BorderLayout.NORTH)
+
+        val searchRowPanel = JPanel(BorderLayout(5, 0))
+        searchRowPanel.add(keywordField, BorderLayout.CENTER)
+        val keywordRightPanel = JPanel(BorderLayout(5, 0))
+        keywordRightPanel.add(onlyThreadCheckbox, BorderLayout.WEST)
+        keywordRightPanel.add(forumSearchButton, BorderLayout.EAST)
+        searchRowPanel.add(keywordRightPanel, BorderLayout.EAST)
+
+        val northPanel = JPanel(BorderLayout(0, 5))
+        northPanel.add(topPanel, BorderLayout.NORTH)
+        northPanel.add(searchRowPanel, BorderLayout.CENTER)
+        add(northPanel, BorderLayout.NORTH)
 
         val bottomPanel = JPanel(BorderLayout(5, 0))
         prevPageButton.isEnabled = false
@@ -50,8 +66,16 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
                 }
             }
         })
+        keywordField.addKeyListener(object : KeyAdapter() {
+            override fun keyPressed(e: KeyEvent) {
+                if (e.keyCode == KeyEvent.VK_ENTER) {
+                    doForumSearch()
+                }
+            }
+        })
 
         searchButton.addActionListener { doSearch() }
+        forumSearchButton.addActionListener { doForumSearch() }
         goodCheckbox.addActionListener {
             isGoodMode = goodCheckbox.isSelected
             if (forum.isNotEmpty()) onModeChange?.invoke(isGoodMode)
@@ -73,6 +97,17 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
         prevPageButton.isEnabled = false
         nextPageButton.isEnabled = false
         onSearch?.invoke(text)
+    }
+
+    private fun doForumSearch() {
+        val keyword = keywordField.text.trim()
+        if (keyword.isEmpty()) return
+        if (forum.isEmpty()) return
+        currentPage = 1
+        pageInfoLabel.text = "1"
+        prevPageButton.isEnabled = false
+        nextPageButton.isEnabled = false
+        onForumSearch?.invoke(keyword, onlyThreadCheckbox.isSelected)
     }
 
     fun updatePageInfo(current: Int, total: Int, hasMore: Boolean) {

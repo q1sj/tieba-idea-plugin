@@ -18,6 +18,10 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
         font = font.deriveFont(11f)
     }
 
+    private data class SearchParams(val keyword: String, val onlyThread: Boolean)
+
+    private var searchParams: SearchParams? = null
+
     private val cardPanel = JPanel(CardLayout())
     private val cardLayout = cardPanel.layout as CardLayout
     private val listCard = JPanel(BorderLayout(0, 5))
@@ -32,18 +36,29 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
         add(cardPanel, BorderLayout.CENTER)
 
         searchPanel.onSearch = { forum ->
+            searchParams = null
             loadThreads(forum, isGood = searchPanel.isGoodMode)
         }
         searchPanel.onPageChange = { page ->
             val forum = searchPanel.forum
             if (forum.isNotEmpty()) {
-                loadThreads(forum, page, searchPanel.isGoodMode)
+                if (searchParams != null) {
+                    searchForum(forum, searchParams!!.keyword, page, searchParams!!.onlyThread)
+                } else {
+                    loadThreads(forum, page, searchPanel.isGoodMode)
+                }
             }
         }
         searchPanel.onModeChange = { isGood ->
             val forum = searchPanel.forum
             if (forum.isNotEmpty()) {
                 loadThreads(forum, 1, isGood)
+            }
+        }
+        searchPanel.onForumSearch = { keyword, onlyThread ->
+            val forum = searchPanel.forum
+            if (forum.isNotEmpty()) {
+                searchForum(forum, keyword, 1, onlyThread)
             }
         }
 
@@ -122,6 +137,60 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
                     statusLabel.text = "$forum - 第${page}页"
                 } catch (e: Exception) {
                     statusLabel.text = "解析错误: ${e.message}"
+                }
+            }
+        }
+    }
+
+    private fun searchForum(forum: String, keyword: String, page: Int = 1, onlyThread: Boolean = false) {
+        searchParams = SearchParams(keyword, onlyThread)
+        statusLabel.text = "搜索中..."
+        threadListPanel.showLoading()
+
+        bridge.sendRequest(
+            mapOf(
+                "action" to "search",
+                "forum" to forum,
+                "keyword" to keyword,
+                "page" to page,
+                "only_thread" to onlyThread
+            )
+        ).thenAccept { json ->
+            SwingUtilities.invokeLater {
+                threadListPanel.hideLoading()
+                try {
+                    val obj: JsonObject = JsonParser.parseString(json).asJsonObject
+                    if (obj.has("error")) {
+                        statusLabel.text = "错误: ${obj.get("error").asString}"
+                        searchParams = null
+                        return@invokeLater
+                    }
+
+                    val threads = mutableListOf<com.example.tieba.data.TiebaThread>()
+                    val totalPage = obj.get("totalPage")?.asInt ?: 0
+                    val hasMore = obj.get("hasMore")?.asBoolean ?: false
+
+                    obj.get("items")?.asJsonArray?.forEach { ij ->
+                        val it = ij.asJsonObject
+                        val title = it.get("title")?.asString ?: ""
+                        val text = it.get("text")?.asString ?: ""
+                        threads.add(
+                            com.example.tieba.data.TiebaThread(
+                                tid = it.get("tid")?.asLong ?: 0,
+                                title = title.ifEmpty { text.take(50) }.ifEmpty { "未命名帖子" },
+                                text = text,
+                                author = it.get("showName")?.asString ?: "",
+                                lastTime = it.get("createTime")?.asString ?: ""
+                            )
+                        )
+                    }
+
+                    threadListPanel.setThreads(threads)
+                    searchPanel.updatePageInfo(page, totalPage, hasMore)
+                    statusLabel.text = "搜索『$keyword』于$forum - 第${page}页"
+                } catch (e: Exception) {
+                    statusLabel.text = "解析错误: ${e.message}"
+                    searchParams = null
                 }
             }
         }

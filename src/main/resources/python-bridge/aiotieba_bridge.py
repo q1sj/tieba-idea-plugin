@@ -68,6 +68,30 @@ async def handle_get_threads(forum: str, page: int = 1, is_good: bool = False):
     }
 
 
+async def handle_search(forum: str, keyword: str, page: int = 1, only_thread: bool = False):
+    from aiotieba import SearchType
+    async with aiotieba.Client() as client:
+        search_result = await client.search_exact(forum, keyword, page, only_thread=only_thread)
+    items = []
+    for r in search_result.objs:
+        items.append({
+            "fname": r.fname,
+            "tid": r.tid,
+            "pid": r.pid,
+            "title": r.title,
+            "text": r.text,
+            "showName": r.show_name,
+            "isComment": r.is_comment,
+            "createTime": fmt_time(r.create_time),
+        })
+    return {
+        "items": items,
+        "totalPage": search_result.page.total_page if search_result.page else 0,
+        "currentPage": page,
+        "hasMore": search_result.has_more,
+    }
+
+
 async def handle_get_posts(tid: int, page: int = 1, only_op: bool = False):
     async with aiotieba.Client() as client:
         posts_result = await client.get_posts(tid, page)
@@ -133,6 +157,13 @@ async def process_request(request: dict) -> dict:
         if action == "get_threads":
             return await handle_get_threads(
                 request.get("forum", ""), request.get("page", 1), request.get("is_good", False)
+            )
+        elif action == "search":
+            return await handle_search(
+                request.get("forum", ""),
+                request.get("keyword", ""),
+                request.get("page", 1),
+                request.get("only_thread", False),
             )
         elif action == "get_posts":
             return await handle_get_posts(request.get("tid", 0), request.get("page", 1), request.get("only_op", False))

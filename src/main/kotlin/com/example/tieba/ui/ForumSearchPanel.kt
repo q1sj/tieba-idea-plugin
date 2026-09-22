@@ -10,11 +10,14 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
 
     var forum: String = ""
     var currentPage: Int = 1
+    var isGoodMode: Boolean = false
 
     var onSearch: ((String) -> Unit)? = null
     var onPageChange: ((Int) -> Unit)? = null
+    var onModeChange: ((Boolean) -> Unit)? = null
 
     private val searchField = SearchTextField()
+    private val goodCheckbox = JCheckBox("精品")
     private val searchButton = JButton("浏览")
     private val prevPageButton = JButton("<")
     private val nextPageButton = JButton(">")
@@ -25,7 +28,10 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
 
         val topPanel = JPanel(BorderLayout(5, 0))
         topPanel.add(searchField, BorderLayout.CENTER)
-        topPanel.add(searchButton, BorderLayout.EAST)
+        val rightPanel = JPanel(BorderLayout(5, 0))
+        rightPanel.add(goodCheckbox, BorderLayout.WEST)
+        rightPanel.add(searchButton, BorderLayout.EAST)
+        topPanel.add(rightPanel, BorderLayout.EAST)
         add(topPanel, BorderLayout.NORTH)
 
         val bottomPanel = JPanel(BorderLayout(5, 0))
@@ -46,6 +52,10 @@ class ForumSearchPanel : JPanel(BorderLayout()) {
         })
 
         searchButton.addActionListener { doSearch() }
+        goodCheckbox.addActionListener {
+            isGoodMode = goodCheckbox.isSelected
+            if (forum.isNotEmpty()) onModeChange?.invoke(isGoodMode)
+        }
         prevPageButton.addActionListener {
             if (currentPage > 1) onPageChange?.invoke(currentPage - 1)
         }

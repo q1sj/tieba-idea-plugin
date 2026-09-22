@@ -43,9 +43,9 @@ def rebuild_text(contents) -> str:
     return "".join(parts)
 
 
-async def handle_get_threads(forum: str, page: int = 1):
+async def handle_get_threads(forum: str, page: int = 1, is_good: bool = False):
     async with aiotieba.Client() as client:
-        threads_result = await client.get_threads(forum, page)
+        threads_result = await client.get_threads(forum, page, is_good=is_good)
     threads = []
     for t in threads_result.objs:
         user = t.user
@@ -131,7 +131,9 @@ async def process_request(request: dict) -> dict:
     action = request.get("action", "")
     try:
         if action == "get_threads":
-            return await handle_get_threads(request.get("forum", ""), request.get("page", 1))
+            return await handle_get_threads(
+                request.get("forum", ""), request.get("page", 1), request.get("is_good", False)
+            )
         elif action == "get_posts":
             return await handle_get_posts(request.get("tid", 0), request.get("page", 1), request.get("only_op", False))
         elif action == "get_comments":

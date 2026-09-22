@@ -32,12 +32,18 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
         add(cardPanel, BorderLayout.CENTER)
 
         searchPanel.onSearch = { forum ->
-            loadThreads(forum)
+            loadThreads(forum, isGood = searchPanel.isGoodMode)
         }
         searchPanel.onPageChange = { page ->
             val forum = searchPanel.forum
             if (forum.isNotEmpty()) {
-                loadThreads(forum, page)
+                loadThreads(forum, page, searchPanel.isGoodMode)
+            }
+        }
+        searchPanel.onModeChange = { isGood ->
+            val forum = searchPanel.forum
+            if (forum.isNotEmpty()) {
+                loadThreads(forum, 1, isGood)
             }
         }
 
@@ -74,12 +80,12 @@ class TiebaPanel(private val project: Project, private val bridge: TiebaBridge) 
         }
     }
 
-    private fun loadThreads(forum: String, page: Int = 1) {
+    private fun loadThreads(forum: String, page: Int = 1, isGood: Boolean = false) {
         statusLabel.text = "加载中..."
         threadListPanel.showLoading()
 
         bridge.sendRequest(
-            mapOf("action" to "get_threads", "forum" to forum, "page" to page)
+            mapOf("action" to "get_threads", "forum" to forum, "page" to page, "is_good" to isGood)
         ).thenAccept { json ->
             SwingUtilities.invokeLater {
                 threadListPanel.hideLoading()

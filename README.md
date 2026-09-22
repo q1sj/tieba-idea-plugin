@@ -66,14 +66,14 @@ pip install aiotieba
 
 ```
 ┌─────────────────────────────┐      JSON line-delimited       ┌──────────────────────────────┐
-│  IntelliJ IDEA Plugin       │                                │  Python 子进程               │
+│  IntelliJ IDEA Plugin       │                                │  Python 子进程                │
 │  (Kotlin + Swing)           │  ──────── request ─────────▶   │  python-bridge/aiotieba_     │
 │                             │    {"req_id":1,"action":...}   │  bridge.py                   │
-│  ui/TiebaPanel  (主面板)    │                                │  └─ aiotieba 客户端          │
+│  ui/TiebaPanel  (主面板)     │                                │  └─ aiotieba 客户端           │
 │  ui/ForumSearchPanel        │  ◀─────── response ─────────   │                              │
 │  ui/ThreadListPanel         │     {"req_id":1,"threads":[]}  │                              │
 │  ui/PostReaderPanel         │                                │                              │
-│  data/TiebaBridge  (桥接)   │                                │                              │
+│  data/TiebaBridge  (桥接)    │                                │                              │
 └─────────────────────────────┘                                └──────────────────────────────┘
 ```
 
@@ -119,7 +119,7 @@ pip install aiotieba
 
 ## 致谢
 
-- [aiotieba](https://github.com/Starry-OvO/aiotieba)：为插件提供底层贴吧数据获取能力
+- [aiotieba](https://github.com/lumina37/aiotieba/)：为插件提供底层贴吧数据获取能力
 - JetBrains IntelliJ Platform SDK
 
 ## License

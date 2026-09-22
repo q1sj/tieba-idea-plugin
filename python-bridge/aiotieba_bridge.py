@@ -25,6 +25,24 @@ def fmt_time(ts: int) -> str:
     return datetime.datetime.fromtimestamp(ts).strftime("%m-%d %H:%M")
 
 
+def rebuild_text(contents) -> str:
+    """按内容碎片顺序重建文本,把表情还原为 [描述] 占位符(如 [泪]).
+
+    aiotieba 的 contents.text 只拼接纯文本碎片,表情碎片会被丢弃。
+    """
+    if contents is None:
+        return ""
+    parts = []
+    for frag in getattr(contents, "objs", []):
+        if getattr(frag, "desc", None) is not None and getattr(frag, "id", None) is not None:
+            parts.append(f"[{frag.desc or frag.id}]")
+        else:
+            text = getattr(frag, "text", None)
+            if isinstance(text, str) and text:
+                parts.append(text)
+    return "".join(parts)
+
+
 async def handle_get_threads(forum: str, page: int = 1):
     async with aiotieba.Client() as client:
         threads_result = await client.get_threads(forum, page)
@@ -34,7 +52,7 @@ async def handle_get_threads(forum: str, page: int = 1):
         threads.append({
             "tid": t.tid,
             "title": t.title,
-            "text": t.text[:200] if t.text else "",
+            "text": (rebuild_text(getattr(t, "contents", None)) or t.text)[:200],
             "author": (user.nick_name or user.user_name) if user else "",
             "replyNum": t.reply_num,
             "viewNum": t.view_num,
@@ -67,7 +85,7 @@ async def handle_get_posts(tid: int, page: int = 1, only_op: bool = False):
             "floor": p.floor,
             "pid": p.pid,
             "author": (user.nick_name or user.user_name) if user else "",
-            "text": p.text,
+            "text": rebuild_text(p.contents) or p.text,
             "imgs": imgs,
             "timestamp": fmt_time(p.create_time),
             "isOp": p.is_thread_author,
@@ -92,7 +110,7 @@ async def handle_get_comments(tid: int, pid: int, page: int = 1):
         user = c.user
         comments.append({
             "author": (user.nick_name or user.user_name) if user else "",
-            "text": c.text,
+            "text": rebuild_text(c.contents) or c.text,
             "timestamp": fmt_time(c.create_time),
             "isOp": c.is_thread_author,
             "agree": c.agree,
